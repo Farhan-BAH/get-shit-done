@@ -479,4 +479,31 @@ describe('init manager', () => {
     assert.strictEqual(output.manager_flags.plan, '--valid-flag', 'valid flag should pass through');
     assert.strictEqual(output.manager_flags.execute, '', 'command substitution should be sanitized');
   });
+
+  test('does not recommend BACKLOG phases (999.x) as next actions', () => {
+    writeState(tmpDir);
+    // Regular phase (planned, deps met) plus a backlog phase (999.1) also planned
+    writeRoadmap(tmpDir, [
+      { number: '1', name: 'Foundation' },
+      { number: '999.1', name: 'Nice to have feature (BACKLOG)' },
+    ]);
+    // Phase 1: planned (has plan, no summary)
+    scaffoldPhase(tmpDir, 1, { plans: 1 });
+    // Phase 999.1: planned (has plan, no summary)
+    const backlogDir = path.join(tmpDir, '.planning', 'phases', '999.1-backlog');
+    fs.mkdirSync(backlogDir, { recursive: true });
+    fs.writeFileSync(path.join(backlogDir, '999.1-01-PLAN.md'), '# Backlog Plan');
+
+    const result = runGsdTools('init manager', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    const recommended = output.recommended_actions || [];
+    const backlogRecs = recommended.filter(r => /^999/.test(r.phase));
+    assert.strictEqual(backlogRecs.length, 0, 'no 999.x phases should appear in recommended_actions');
+
+    // Phase 1 (non-backlog) should still be recommended
+    const activeRecs = recommended.filter(r => r.phase === '1');
+    assert.strictEqual(activeRecs.length, 1, 'phase 1 should still be recommended');
+  });
 });
