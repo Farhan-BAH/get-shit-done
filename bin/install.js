@@ -2896,6 +2896,129 @@ function stripLeakedGsdCodexSections(content) {
 }
 
 /**
+ * Strip GSD-managed legacy Codex hook blocks from a config.toml string
+ * using the TOML AST already used elsewhere in this file
+ * (`getTomlTableSections` + `removeContentRanges`). The earlier regex-based
+ * implementation required a precise key order, exact single-space padding
+ * around `=`, and exactly one blank line between Shape 4's parent/child
+ * tables — any deviation (an extra blank line, key reorder, an added
+ * `timeout` key, `event="SessionStart"` without spaces) silently leaked the
+ * stale block, sometimes corrupting the file by leaving orphaned key=value
+ * lines outside any table.
+ *
+ * The structural approach: find every `hooks*` table whose body contains a
+ * `command = "...gsd-(check-update|update-check).js"` value, remove its
+ * exact byte range, and additionally remove any orphaned parent
+ * `[[hooks.SessionStart]]` whose body becomes empty as a result (Shape 4).
+ * The leading `# GSD Hooks` header line is swallowed by extending the
+ * removal range backward through any single preceding comment line.
+ *
+ * Pure function, exported for test coverage. Returns the input unchanged
+ * if no GSD-managed hook section is present.
+ */
+// Legacy hook command basenames to detect during strip. Template-literal
+// form so install-hooks-copy.test.cjs's quoted-literal guard continues to
+// catch accidental regressions where someone *registers* the inverted
+// `gsd-update-check.js` filename in a Codex hook command.
+const STALE_HOOK_BASENAMES = new Set([
+  `gsd-update-check.js`,
+  `gsd-check-update.js`,
+]);
+function stripStaleGsdHookBlocks(configContent) {
+  const sections = getTomlTableSections(configContent);
+  const lineRecords = getTomlLineRecords(configContent);
+  const hookSections = sections.filter(
+    (s) => s.path === 'hooks' || s.path.startsWith('hooks.')
+  );
+  if (hookSections.length === 0) {
+    return configContent;
+  }
+
+  // A section is GSD-managed if any structural `command` key inside its
+  // body parses to a string whose basename matches `gsd-(check-update|
+  // update-check).js`. The TOML line parser already classified each line's
+  // `keySegments`, so we never inspect raw text — this handles arbitrary
+  // whitespace, key reordering, and additional keys robustly.
+  function sectionHasStaleCommand(section) {
+    const records = lineRecords.filter(
+      (r) => !r.startsInMultilineString
+        && !r.tableHeader
+        && r.start >= section.headerEnd
+        && r.end + r.eol.length <= section.end
+        && r.keySegments
+        && r.keySegments.length === 1
+        && r.keySegments[0] === 'command'
+    );
+    for (const record of records) {
+      const equalsIndex = findTomlAssignmentEquals(record.text);
+      if (equalsIndex === -1) continue;
+      let parsed;
+      try {
+        parsed = parseTomlValue(record.text, equalsIndex + 1);
+      } catch {
+        continue;
+      }
+      if (typeof parsed.value !== 'string') continue;
+      // Match the basename — Codex configs reference these files by absolute
+      // path under the user's `.codex/hooks/` directory.
+      const basename = parsed.value.split(/[\\/]/).pop() || '';
+      if (STALE_HOOK_BASENAMES.has(basename)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const stale = new Set(hookSections.filter(sectionHasStaleCommand));
+  if (stale.size === 0) {
+    return configContent;
+  }
+
+  // Shape 4: a `[[hooks.SessionStart]]` event-table whose body is empty and
+  // whose immediately following section is a stale child handler table
+  // (`[[hooks.SessionStart.hooks]]`) becomes orphaned once the child is
+  // stripped. Detect emptiness via line records — no key/value lines and no
+  // non-blank, non-comment text between this section's header and the next.
+  function sectionBodyHasContent(section) {
+    return lineRecords.some(
+      (r) => !r.startsInMultilineString
+        && !r.tableHeader
+        && r.start >= section.headerEnd
+        && r.end + r.eol.length <= section.end
+        && r.text.trim() !== ''
+        && !r.text.trim().startsWith('#')
+    );
+  }
+  for (let i = 0; i < sections.length; i += 1) {
+    const parent = sections[i];
+    if (stale.has(parent)) continue;
+    if (!parent.array || parent.path !== 'hooks.SessionStart') continue;
+    if (sectionBodyHasContent(parent)) continue;
+    const next = sections[i + 1];
+    if (next && stale.has(next) && next.path.startsWith('hooks.SessionStart.')) {
+      stale.add(parent);
+    }
+  }
+
+  // Each removal range starts at the table header. If the immediately
+  // preceding line is the GSD marker comment `# GSD Hooks` (and is not part
+  // of an already-removed section), extend the range backward to swallow it
+  // — preserves cleanliness on round-trip strip+rewrite.
+  const ranges = [];
+  for (const section of stale) {
+    let start = section.start;
+    const headerLineIdx = lineRecords.findIndex((r) => r.start === section.start);
+    const prev = headerLineIdx > 0 ? lineRecords[headerLineIdx - 1] : null;
+    if (prev && !prev.startsInMultilineString && prev.text.trim() === '# GSD Hooks') {
+      start = prev.start;
+    }
+    ranges.push({ start, end: section.end });
+  }
+
+  return collapseTomlBlankLines(removeContentRanges(configContent, ranges));
+}
+
+/**
  * Migrate legacy Codex [hooks] map format to [[hooks]] array-of-tables format.
  *
  * Codex 0.124.0 changed from the old map-style hooks config:
@@ -7201,28 +7324,7 @@ function install(isGlobal, runtime = 'claude') {
       //   Shape 2 — flat [[hooks]] + event = "SessionStart" (#2637 era, never correct)
       //   Shape 4 — correct two-block nested (strip before shape 3 to avoid orphaned header)
       //   Shape 3 — single-block [[hooks.SessionStart]] without nested .hooks (#2760 era)
-      if (configContent.includes('gsd-update-check') || configContent.includes('gsd-check-update')) {
-        // Shape 1
-        configContent = configContent.replace(
-          /(?:\r?\n|^)# GSD Hooks\r?\n\[\[hooks\]\]\r?\nevent = "SessionStart"\r?\ncommand = "node [^\r\n]*gsd-update-check\.js"\r?\n/gm,
-          (match) => (match.startsWith('\r\n') ? '\r\n' : match.startsWith('\n') ? '\n' : ''),
-        );
-        // Shape 2
-        configContent = configContent.replace(
-          /(?:\r?\n|^)# GSD Hooks\r?\n\[\[hooks\]\]\r?\nevent = "SessionStart"\r?\ncommand = "node [^\r\n]*gsd-check-update\.js"\r?\n/gm,
-          (match) => (match.startsWith('\r\n') ? '\r\n' : match.startsWith('\n') ? '\n' : ''),
-        );
-        // Shape 4 — strip before shape 3 to avoid orphaned header
-        configContent = configContent.replace(
-          /(?:\r?\n|^)# GSD Hooks\r?\n\[\[hooks\.SessionStart\]\]\r?\n\r?\n\[\[hooks\.SessionStart\.hooks\]\]\r?\ntype = "command"\r?\ncommand = "node [^\r\n]*(?:gsd-check-update|gsd-update-check)\.js"\r?\n/gm,
-          (match) => (match.startsWith('\r\n') ? '\r\n' : match.startsWith('\n') ? '\n' : ''),
-        );
-        // Shape 3
-        configContent = configContent.replace(
-          /(?:\r?\n|^)# GSD Hooks\r?\n\[\[hooks\.SessionStart\]\]\r?\ncommand = "node [^\r\n]*(?:gsd-check-update|gsd-update-check)\.js"\r?\n/gm,
-          (match) => (match.startsWith('\r\n') ? '\r\n' : match.startsWith('\n') ? '\n' : ''),
-        );
-      }
+      configContent = stripStaleGsdHookBlocks(configContent);
 
       // Migrate legacy [hooks] map format and flat [[hooks]] AoT entries to the
       // namespaced [[hooks.<EVENT>]] form after stripping GSD-managed stale blocks.
@@ -8464,6 +8566,7 @@ if (process.env.GSD_TEST_MODE) {
     generateCodexConfigBlock,
     stripGsdFromCodexConfig,
     migrateCodexHooksMapFormat,
+    stripStaleGsdHookBlocks,
     hasUserNamespacedAotHooks,
     parseTomlToObject,
     validateCodexConfigSchema,
