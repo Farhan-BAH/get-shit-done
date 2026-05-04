@@ -93,6 +93,11 @@ try {
     encoding: 'utf8',
     timeout: 10000,
     windowsHide: true,
+    // shell:true is required on Windows so 'npm' resolves to npm.cmd via PATHEXT.
+    // Without it, execFileSync looks for a literal 'npm' binary, fails with ENOENT,
+    // the catch swallows the error, latest stays null, and the statusline never shows
+    // the "⬆ /gsd-update" indicator on Windows.
+    shell: true,
   }).trim();
 } catch (e) {}
 
