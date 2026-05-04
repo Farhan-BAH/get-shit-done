@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { timeoutMessage } from './query-failure-classification.js';
-import type { GSDToolsError } from './gsd-tools-error.js';
+import type { GSDToolsError, GSDToolsErrorClassification } from './gsd-tools-error.js';
 
 export interface QuerySubprocessAdapterDeps {
   projectDir: string;
@@ -14,6 +14,7 @@ export interface QuerySubprocessAdapterDeps {
     args: string[],
     exitCode: number | null,
     stderr: string,
+    classification?: GSDToolsErrorClassification,
   ) => GSDToolsError;
 }
 
@@ -46,6 +47,7 @@ export class QuerySubprocessAdapter {
                   args,
                   null,
                   stderrStr,
+                  { kind: 'timeout', timeoutMs: this.deps.timeoutMs },
                 ),
               );
               return;
@@ -112,6 +114,7 @@ export class QuerySubprocessAdapter {
                   args,
                   null,
                   stderrStr,
+                  { kind: 'timeout', timeoutMs: this.deps.timeoutMs },
                 ),
               );
               return;

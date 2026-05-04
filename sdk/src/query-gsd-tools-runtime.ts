@@ -33,14 +33,15 @@ export function createGSDToolsRuntime(opts: {
     gsdToolsPath: opts.gsdToolsPath,
     timeoutMs: opts.timeoutMs,
     workstream: opts.workstream,
-    createToolsError: (message, command, args, exitCode, stderr) =>
-      new GSDToolsError(message, command, args, exitCode, stderr),
+    createToolsError: (message, command, args, exitCode, stderr, classification) =>
+      new GSDToolsError(message, command, args, exitCode, stderr, classification ? { classification } : undefined),
   });
 
   const nativeDirectAdapter = new QueryNativeDirectAdapter({
     timeoutMs: opts.timeoutMs,
     dispatch: (registryCommand, registryArgs) => registry.dispatch(registryCommand, registryArgs, opts.projectDir),
-    createTimeoutError: (message, command, args) => new GSDToolsError(message, command, args, null, ''),
+    createTimeoutError: (message, command, args) =>
+      new GSDToolsError(message, command, args, null, '', { classification: { kind: 'timeout', timeoutMs: opts.timeoutMs } }),
   });
 
   const transport = new GSDTransport(registry, {

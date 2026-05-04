@@ -1,5 +1,5 @@
 import type { QueryDispatchError, QueryDispatchResult } from './query-dispatch-contract.js';
-import { errorMessage, isTimeoutMessage, parseTimeoutMs } from '../query-failure-classification.js';
+import { toFailureSignal } from '../query-failure-classification.js';
 import { fallbackFailureError, nativeFailureError, nativeTimeoutError } from './query-error-taxonomy.js';
 import { dispatchFailure } from './query-dispatch-result-builder.js';
 
@@ -11,14 +11,14 @@ export function toDispatchFailure(
 }
 
 export function mapNativeDispatchError(error: unknown, command: string, args: string[]): QueryDispatchError {
-  const message = errorMessage(error);
-  if (isTimeoutMessage(message)) {
-    return nativeTimeoutError({ message, command, args, timeoutMs: parseTimeoutMs(message) });
+  const signal = toFailureSignal(error);
+  if (signal.kind === 'timeout') {
+    return nativeTimeoutError({ message: signal.message, command, args, timeoutMs: signal.timeoutMs });
   }
-  return nativeFailureError({ message, command, args });
+  return nativeFailureError({ message: signal.message, command, args });
 }
 
 export function mapFallbackDispatchError(error: unknown, command: string, args: string[]): QueryDispatchError {
-  const message = errorMessage(error);
-  return fallbackFailureError({ message, command, args, backend: 'cjs' });
+  const signal = toFailureSignal(error);
+  return fallbackFailureError({ message: signal.message, command, args, backend: 'cjs' });
 }
