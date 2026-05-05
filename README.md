@@ -94,7 +94,7 @@ Built-in quality gates catch real problems: schema drift detection flags ORM cha
 See the [v1.39.0 release notes](https://github.com/gsd-build/get-shit-done/releases/tag/v1.39.0) for the full list.
 
 - **`--minimal` install profile** — alias `--core-only`, writes only the six main-loop skills (`new-project`, `discuss-phase`, `plan-phase`, `execute-phase`, `help`, `update`) and zero `gsd-*` subagents. Cuts cold-start system-prompt overhead from ~12k tokens to ~700 (≥94% reduction). Useful for local LLMs with 32K–128K context and token-billed APIs.
-- **`/gsd-edit-phase`** — modify any field of an existing phase in `ROADMAP.md` in place, without changing its number or position. `--force` skips the confirmation diff; `depends_on` references are validated and `STATE.md` is updated on write.
+- **`/gsd-phase --edit`** — modify any field of an existing phase in `ROADMAP.md` in place, without changing its number or position. `--force` skips the confirmation diff; `depends_on` references are validated and `STATE.md` is updated on write.
 - **Post-merge build & test gate** — `execute-phase` step 5.6 now auto-detects the build command from `workflow.build_command`, then falls back to Xcode (`.xcodeproj`), Makefile, Justfile, Cargo, Go, Python, or npm. Xcode/iOS projects get `xcodebuild build` + `xcodebuild test` automatically. Runs in both parallel and serial mode.
 - **Per-runtime review-model selection** — `review.models.<cli>` lets each external review CLI (codex, gemini, etc.) pick its own model independently of the planner/executor profile.
 - **Workstream config inheritance** — when `GSD_WORKSTREAM` is set, the root `.planning/config.json` is loaded first and deep-merged with the workstream config (workstream wins on conflict). Explicit `null` in a workstream config now correctly overrides a root value.
@@ -652,8 +652,8 @@ You're never locked in. The system adapts.
 | Command | What it does |
 |---------|--------------|
 | `/gsd-workspace --new` | Create isolated workspace with repo copies (worktrees or clones) |
-| `/gsd-list-workspaces` | Show all GSD workspaces and their status |
-| `/gsd-remove-workspace` | Remove workspace and clean up worktrees |
+| `/gsd-workspace --list` | Show all GSD workspaces and their status |
+| `/gsd-workspace --remove` | Remove workspace and clean up worktrees |
 
 ### Spiking & Sketching
 
@@ -661,8 +661,8 @@ You're never locked in. The system adapts.
 |---------|--------------|
 | `/gsd-spike [idea] [--quick]` | Throwaway experiments to validate feasibility before planning — no project init required |
 | `/gsd-sketch [idea] [--quick]` | Throwaway HTML mockups with multi-variant exploration — no project init required |
-| `/gsd-spike-wrap-up` | Package spike findings into a project-local skill for future build conversations |
-| `/gsd-sketch-wrap-up` | Package sketch design findings into a project-local skill for future builds |
+| `/gsd-spike --wrap-up` | Package spike findings into a project-local skill for future build conversations |
+| `/gsd-sketch --wrap-up` | Package sketch design findings into a project-local skill for future builds |
 
 ### UI Design
 
@@ -679,7 +679,6 @@ You're never locked in. The system adapts.
 | `/gsd-progress --next` | Auto-detect state and run the next step |
 | `/gsd-help` | Show all commands and usage guide |
 | `/gsd-update` | Update GSD with changelog preview |
-| `/gsd-join-discord` | Join the GSD Discord community |
 | `/gsd-manager` | Interactive command center for managing multiple phases |
 
 ### Brownfield
@@ -693,11 +692,11 @@ You're never locked in. The system adapts.
 
 | Command | What it does |
 |---------|--------------|
-| `/gsd-add-phase` | Append phase to roadmap |
-| `/gsd-insert-phase [N]` | Insert urgent work between phases |
-| `/gsd-edit-phase [N] [--force]` | Modify any field of an existing phase in place — number and position unchanged |
-| `/gsd-remove-phase [N]` | Remove future phase, renumber |
-| `/gsd-list-phase-assumptions [N]` | See Claude's intended approach before planning |
+| `/gsd-phase` | Append phase to roadmap |
+| `/gsd-phase --insert [N]` | Insert urgent work between phases |
+| `/gsd-phase --edit [N] [--force]` | Modify any field of an existing phase in place — number and position unchanged |
+| `/gsd-phase --remove [N]` | Remove future phase, renumber |
+| `/gsd-discuss-phase --assumptions [N]` | See Claude's intended approach before planning |
 
 ### Session
 
@@ -705,7 +704,7 @@ You're never locked in. The system adapts.
 |---------|--------------|
 | `/gsd-pause-work` | Create handoff when stopping mid-phase (writes HANDOFF.json) |
 | `/gsd-resume-work` | Restore from last session |
-| `/gsd-session-report` | Generate session summary with work performed and outcomes |
+| `/gsd-pause-work --report` | Generate session summary with work performed and outcomes |
 
 ### Workstreams
 
@@ -727,8 +726,8 @@ You're never locked in. The system adapts.
 
 | Command | What it does |
 |---------|--------------|
-| `/gsd-plant-seed <idea>` | Capture forward-looking ideas with trigger conditions — surfaces at the right milestone |
-| `/gsd-add-backlog <desc>` | Add idea to backlog parking lot (999.x numbering, outside active sequence) |
+| `/gsd-capture --seed <idea>` | Capture forward-looking ideas with trigger conditions — surfaces at the right milestone |
+| `/gsd-capture --backlog <desc>` | Add idea to backlog parking lot (999.x numbering, outside active sequence) |
 | `/gsd-review-backlog` | Review and promote backlog items to active milestone or remove stale entries |
 | `/gsd-thread [name]` | Persistent context threads — lightweight cross-session knowledge for work spanning multiple sessions |
 
@@ -737,8 +736,8 @@ You're never locked in. The system adapts.
 | Command | What it does |
 |---------|--------------|
 | `/gsd-settings` | Configure model profile and workflow agents |
-| `/gsd-set-profile <profile>` | Switch model profile (quality/balanced/budget/inherit) |
-| `/gsd-add-todo [desc]` | Capture idea for later |
+| `/gsd-config --profile <profile>` | Switch model profile (quality/balanced/budget/inherit) |
+| `/gsd-capture [desc]` | Capture idea for later |
 | `/gsd-capture --list` | List pending todos |
 | `/gsd-debug [desc]` | Systematic debugging with persistent state |
 | `/gsd-do <text>` | Route freeform text to the right GSD command automatically |
@@ -779,7 +778,7 @@ Control which Claude model each agent uses. Balance quality vs token spend.
 
 Switch profiles:
 ```
-/gsd-set-profile budget
+/gsd-config --profile budget
 ```
 
 Use `inherit` when using non-Anthropic providers (OpenRouter, local models) or to follow the current runtime model selection (e.g. OpenCode `/model`).

@@ -26,7 +26,7 @@ Para detalhes completos de flags avançadas e mudanças recentes, consulte tamb�
 | `/gsd-progress` | Mostra status atual e próximos passos |
 | `/gsd-resume-work` | Retoma contexto da sessão anterior |
 | `/gsd-pause-work` | Salva handoff estruturado |
-| `/gsd-session-report` | Gera resumo da sessão |
+| `/gsd-pause-work --report` | Gera resumo da sessão |
 | `/gsd-autonomous` | Executa todas as fases restantes de forma autônoma (`--from N`, `--to N`, `--only N`) |
 | `/gsd-help` | Lista comandos e uso |
 | `/gsd-update` | Atualiza o GSD |
@@ -38,7 +38,7 @@ Para detalhes completos de flags avançadas e mudanças recentes, consulte tamb�
 | `/gsd-phase` | Adiciona fase no roadmap |
 | `/gsd-phase --insert [N]` | Insere trabalho urgente entre fases |
 | `/gsd-phase --remove [N]` | Remove fase futura e reenumera |
-| `/gsd-list-phase-assumptions [N]` | Mostra abordagem assumida pelo Claude |
+| `/gsd-discuss-phase --assumptions [N]` | Mostra abordagem assumida pelo Claude |
 
 ## Brownfield e Utilidades
 
@@ -47,7 +47,7 @@ Para detalhes completos de flags avançadas e mudanças recentes, consulte tamb�
 | `/gsd-map-codebase` | Mapeia base existente antes de novo projeto |
 | `/gsd-quick` | Tarefas ad-hoc com garantias do GSD |
 | `/gsd-debug [desc]` | Debug sistemático com estado persistente (`--diagnose` para modo diagnóstico) |
-| `/gsd-analyze-dependencies` | Detecta dependências entre fases e sugere `Depends on` no ROADMAP.md (v1.32) |
+| `/gsd-manager --analyze-deps` | Detecta dependências entre fases e sugere `Depends on` no ROADMAP.md (v1.32) |
 | `/gsd-forensics` | Diagnóstico de falhas no workflow |
 | `/gsd-settings` | Configuração de agentes, perfil e toggles |
 | `/gsd-config --profile <perfil>` | Troca rápida de perfil de modelo |

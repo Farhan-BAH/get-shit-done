@@ -172,7 +172,7 @@ Full roster at `get-shit-done/workflows/*.md`. Workflows are thin orchestrators 
 | `add-tests.md` | Generate unit and E2E tests for a completed phase based on its artifacts. | `/gsd-add-tests` |
 | `add-todo.md` | Capture an idea or task that surfaces during a session as a structured todo. | `/gsd-capture` (default), `/gsd-capture --backlog` |
 | `ai-integration-phase.md` | Orchestrate framework selection → AI research → domain research → eval planning into AI-SPEC.md. | `/gsd-ai-integration-phase` |
-| `analyze-dependencies.md` | Analyze ROADMAP.md phases for file overlap and semantic dependencies; suggest `Depends on` edges. | `/gsd-analyze-dependencies` |
+| `analyze-dependencies.md` | Analyze ROADMAP.md phases for file overlap and semantic dependencies; suggest `Depends on` edges. | `/gsd-manager --analyze-deps` |
 | `audit-fix.md` | Autonomous audit-to-fix pipeline — run audit, parse, classify, fix, test, commit. | `/gsd-audit-fix` |
 | `audit-milestone.md` | Verify milestone met its definition of done by aggregating phase verifications. | `/gsd-audit-milestone` |
 | `audit-uat.md` | Cross-phase audit of UAT and verification files; produces prioritized outstanding-items list. | `/gsd-audit-uat` |
@@ -204,7 +204,7 @@ Full roster at `get-shit-done/workflows/*.md`. Workflows are thin orchestrators 
 | `inbox.md` | Triage open GitHub issues and PRs against project contribution templates. | `/gsd-inbox` |
 | `ingest-docs.md` | Scan a repo for mixed planning docs; classify, synthesize, and bootstrap or merge into `.planning/` with a conflicts report. | `/gsd-ingest-docs` |
 | `insert-phase.md` | Insert a decimal phase for urgent work discovered mid-milestone. | `/gsd-phase --insert` |
-| `list-phase-assumptions.md` | Surface Claude's assumptions about a phase before planning. | `/gsd-list-phase-assumptions` |
+| `list-phase-assumptions.md` | Surface Claude's assumptions about a phase before planning. | `/gsd-discuss-phase --assumptions` |
 | `list-workspaces.md` | List all GSD workspaces found in `~/gsd-workspaces/` with their status. | `/gsd-workspace --list` |
 | `manager.md` | Interactive milestone command center — dashboard, inline discuss, background plan/execute. | `/gsd-manager` |
 | `map-codebase.md` | Orchestrate parallel codebase mapper agents to produce `.planning/codebase/` docs. | `/gsd-map-codebase` |
@@ -230,7 +230,7 @@ Full roster at `get-shit-done/workflows/*.md`. Workflows are thin orchestrators 
 | `review.md` | Cross-AI plan review via external CLIs; produces REVIEWS.md. | `/gsd-review` |
 | `scan.md` | Rapid single-focus codebase scan — lightweight alternative to map-codebase. | `/gsd-scan` |
 | `secure-phase.md` | Retroactive threat-mitigation audit for a completed phase. | `/gsd-secure-phase` |
-| `session-report.md` | Session report — token usage, work summary, outcomes. | `/gsd-session-report` |
+| `session-report.md` | Session report — token usage, work summary, outcomes. | `/gsd-pause-work --report` |
 | `settings.md` | Configure GSD workflow toggles and model profile. | `/gsd-settings`, `/gsd-config --profile` |
 | `settings-advanced.md` | Configure GSD power-user knobs — plan bounce, timeouts, branch templates, cross-AI execution, runtime knobs. | `/gsd-config --advanced` |
 | `settings-integrations.md` | Configure third-party API keys (Brave/Firecrawl/Exa), `review.models.<cli>` CLI routing, and `agent_skills.<agent-type>` injection with masked (`****<last-4>`) display. | `/gsd-config --integrations` |
