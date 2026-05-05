@@ -581,7 +581,6 @@ lmn012o feat(08-02): create registration endpoint
 | `/gsd-progress --next` | 상태 자동 감지 및 다음 단계 실행 |
 | `/gsd-help` | 모든 명령어와 사용 가이드 표시 |
 | `/gsd-update` | 변경 로그 미리보기와 함께 GSD 업데이트 |
-| `/gsd-help` | GSD Discord 커뮤니티 참여 |
 | `/gsd-manager` | 여러 단계 관리를 위한 대화형 커맨드 센터 |
 
 ### 브라운필드
@@ -599,7 +598,7 @@ lmn012o feat(08-02): create registration endpoint
 | `/gsd-phase --edit [N] [--force]` | 기존 단계의 임의 필드를 그 자리에서 수정 — 번호와 위치는 그대로 |
 | `/gsd-phase --remove [N]` | 미래 단계 제거, 번호 재정렬 |
 | `/gsd-discuss-phase --assumptions [N]` | 기획 전 Claude의 의도된 접근 방식 확인 |
-| `/gsd-audit-milestone` | 감사에서 발견된 갭을 해소하기 위한 단계 생성 |
+| `/gsd-audit-milestone --fix` | 감사에서 발견된 갭을 해소하기 위한 단계 생성 |
 
 ### 세션
 

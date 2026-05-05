@@ -748,7 +748,7 @@
 
 ### 26. Model Profiles
 
-**Command:** `/gsd-config --profile <quality|balanced|budget|inherit>`
+**Command:** `/gsd-config --profile <quality|balanced|budget|adaptive|inherit>`
 
 **Purpose:** Control which AI model each agent uses, balancing quality vs cost.
 
@@ -2542,6 +2542,7 @@ Users who run a memory / knowledge-base MCP server (for example, ExoCortex-style
 - REQ-SPIKE-06: `/gsd-spike --wrap-up` MUST package findings into `.claude/skills/spike-findings-[project]/`
 
 **Produces:**
+
 | Artifact | Description |
 |----------|-------------|
 | `.planning/spikes/NNN-name/README.md` | Hypothesis, experiment code, verdict, and evidence |

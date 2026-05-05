@@ -581,12 +581,14 @@ Ingest an external plan file into the GSD planning system with conflict detectio
 |------|----------|--------------|
 | `--from <filepath>` | Yes (or `--from-gsd2`) | Path to the external plan file to import |
 | `--from-gsd2` | Yes (or `--from`) | Reverse-migrate a GSD-2 (`.gsd/`) project back to GSD v1 (`.planning/`) format |
+| `--path <dir>` | No | With `--from-gsd2`: path to the GSD-2 project directory (defaults to current directory) |
 
 **Process:** Detects conflicts → prompts for resolution → writes as GSD PLAN.md → validates via `gsd-plan-checker`
 
 ```bash
-/gsd-import --from /tmp/team-plan.md  # Import and validate an external plan
-/gsd-import --from-gsd2               # Migrate from GSD-2 back to v1
+/gsd-import --from /tmp/team-plan.md    # Import and validate an external plan
+/gsd-import --from-gsd2                # Migrate from GSD-2 back to v1 (current dir)
+/gsd-import --from-gsd2 --path ~/old-project  # Migrate from a different path
 ```
 
 ---

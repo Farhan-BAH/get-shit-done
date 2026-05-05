@@ -577,7 +577,6 @@ lmn012o feat(08-02): create registration endpoint
 | `/gsd-progress --next` | 自动检测状态并执行下一步 |
 | `/gsd-help` | 显示全部命令和使用指南 |
 | `/gsd-update` | 更新 GSD，并预览变更日志 |
-| `/gsd-help` | 加入 GSD Discord 社区 |
 
 ### Brownfield
 
@@ -594,7 +593,7 @@ lmn012o feat(08-02): create registration endpoint
 | `/gsd-phase --edit [N] [--force]` | 就地修改已有 phase 的任意字段 — 编号与位置保持不变 |
 | `/gsd-phase --remove [N]` | 删除未来 phase，并重编号 |
 | `/gsd-discuss-phase --assumptions [N]` | 在规划前查看 Claude 打算采用的方案 |
-| `/gsd-audit-milestone` | 为 audit 发现的缺口创建 phase |
+| `/gsd-audit-milestone --fix` | 为 audit 发现的缺口创建 phase |
 
 ### 代码质量
 

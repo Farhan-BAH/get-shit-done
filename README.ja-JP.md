@@ -584,7 +584,6 @@ lmn012o feat(08-02): create registration endpoint
 | `/gsd-progress --next` | 状態を自動検出し次のステップを実行 |
 | `/gsd-help` | 全コマンドと使い方ガイドを表示 |
 | `/gsd-update` | チェンジログプレビュー付きでGSDをアップデート |
-| `/gsd-help` | GSD Discordコミュニティに参加 |
 | `/gsd-manager` | 複数フェーズ管理用のインタラクティブコマンドセンター |
 
 ### ブラウンフィールド
@@ -602,7 +601,7 @@ lmn012o feat(08-02): create registration endpoint
 | `/gsd-phase --edit [N] [--force]` | 既存フェーズの任意フィールドをその場で編集 — 番号と位置は変更されない |
 | `/gsd-phase --remove [N]` | 将来のフェーズを削除し番号を振り直し |
 | `/gsd-discuss-phase --assumptions [N]` | 計画前にClaudeの意図するアプローチを確認 |
-| `/gsd-audit-milestone` | 監査で見つかったギャップを埋めるフェーズを作成 |
+| `/gsd-audit-milestone --fix` | 監査で見つかったギャップを埋めるフェーズを作成 |
 
 ### セッション
 

@@ -679,7 +679,6 @@ You're never locked in. The system adapts.
 | `/gsd-progress --next` | Auto-detect state and run the next step |
 | `/gsd-help` | Show all commands and usage guide |
 | `/gsd-update` | Update GSD with changelog preview |
-| `/gsd-help` | Join the GSD Discord community |
 | `/gsd-manager` | Interactive command center for managing multiple phases |
 
 ### Brownfield
