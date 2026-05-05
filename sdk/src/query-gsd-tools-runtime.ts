@@ -44,6 +44,8 @@ export function createGSDToolsRuntime(opts: {
     dispatch: (registryCommand, registryArgs) => registry.dispatch(registryCommand, registryArgs, opts.projectDir),
     createTimeoutError: (message, command, args) =>
       GSDToolsError.timeout(message, command, args, '', opts.timeoutMs),
+    createFailureError: (message, command, args, cause) =>
+      GSDToolsError.failure(message, command, args, 1, '', { cause }),
   });
 
   const transport = new GSDTransport(registry, {

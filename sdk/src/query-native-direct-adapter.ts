@@ -1,11 +1,13 @@
 import { formatQueryRawOutput } from './query-raw-output-projection.js';
-import { timeoutMessage } from './query-failure-classification.js';
+import { GSDToolsError } from './gsd-tools-error.js';
+import { errorMessage, timeoutMessage } from './query-failure-classification.js';
 import type { QueryResult } from './query/utils.js';
 
 export interface QueryNativeDirectAdapterDeps {
   timeoutMs: number;
   dispatch: (registryCommand: string, registryArgs: string[]) => Promise<QueryResult>;
   createTimeoutError: (message: string, command: string, args: string[]) => Error;
+  createFailureError: (message: string, command: string, args: string[], cause: unknown) => Error;
 }
 
 /**
@@ -15,7 +17,12 @@ export class QueryNativeDirectAdapter {
   constructor(private readonly deps: QueryNativeDirectAdapterDeps) {}
 
   async dispatchResult(legacyCommand: string, legacyArgs: string[], registryCommand: string, registryArgs: string[]): Promise<QueryResult> {
-    return this.withTimeout(legacyCommand, legacyArgs, this.deps.dispatch(registryCommand, registryArgs));
+    try {
+      return await this.withTimeout(legacyCommand, legacyArgs, this.deps.dispatch(registryCommand, registryArgs));
+    } catch (error) {
+      if (error instanceof GSDToolsError) throw error;
+      throw this.deps.createFailureError(errorMessage(error), legacyCommand, legacyArgs, error);
+    }
   }
 
   async dispatchJson(legacyCommand: string, legacyArgs: string[], registryCommand: string, registryArgs: string[]): Promise<unknown> {
