@@ -1,7 +1,7 @@
 ---
 name: gsd:discuss-phase
 description: Gather phase context through adaptive questioning before planning.
-argument-hint: "<phase> [--all] [--auto] [--chain] [--batch] [--analyze] [--text] [--power]"
+argument-hint: "<phase> [--all] [--auto] [--chain] [--batch] [--analyze] [--text] [--power] [--assumptions]"
 allowed-tools:
   - Read
   - Write
@@ -48,6 +48,9 @@ Context files are resolved in-workflow using `init phase-op` and roadmap/state t
 ```bash
 DISCUSS_MODE=$(gsd-sdk query config-get workflow.discuss_mode 2>/dev/null || echo "discuss")
 ```
+
+If `--assumptions` is in $ARGUMENTS:
+Read and execute `~/.claude/get-shit-done/workflows/list-phase-assumptions.md` end-to-end.
 
 If `DISCUSS_MODE` is `"assumptions"`:
 Read and execute `~/.claude/get-shit-done/workflows/discuss-phase-assumptions.md` end-to-end.
