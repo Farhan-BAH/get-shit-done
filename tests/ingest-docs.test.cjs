@@ -14,6 +14,7 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const { extractFrontmatter } = require('../get-shit-done/bin/lib/frontmatter.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const CMD_PATH = path.join(ROOT, 'commands', 'gsd', 'ingest-docs.md');
@@ -61,8 +62,11 @@ describe('ingest-docs command frontmatter', () => {
     assert.ok(m[1].includes('--resolve'), 'argument-hint should mention --resolve');
   });
   test('allowed-tools include AskUserQuestion and Agent', () => {
-    assert.ok(content.includes('AskUserQuestion'), 'command needs AskUserQuestion for gates');
-    assert.ok(content.includes('- Agent'), 'command needs Agent for agent spawns');
+    const frontmatter = extractFrontmatter(content);
+    const allowedTools = frontmatter['allowed-tools'];
+    assert.ok(Array.isArray(allowedTools), 'allowed-tools should be a frontmatter array');
+    assert.ok(allowedTools.includes('AskUserQuestion'), 'command needs AskUserQuestion for gates');
+    assert.ok(allowedTools.includes('Agent'), 'command needs Agent for agent spawns');
   });
 });
 

@@ -754,7 +754,7 @@ Display spawning indicator:
 
 Spawn 4 parallel gsd-project-researcher agents with path references:
 
-```
+```text
 Agent(prompt="<research_type>
 Project Research — Stack dimension for [domain].
 </research_type>
@@ -1131,7 +1131,7 @@ Display stage banner:
 
 Spawn gsd-roadmapper agent with path references:
 
-```
+```text
 Agent(prompt="
 <planning_context>
 
@@ -1230,7 +1230,7 @@ Use AskUserQuestion:
 - Get user's adjustment notes
 - Re-spawn roadmapper with revision context:
 
-  ```
+  ```text
   Agent(prompt="
   <revision>
   User feedback on roadmap:

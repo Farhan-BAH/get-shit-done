@@ -297,7 +297,7 @@ mkdir -p .planning/research
 Spawn 4 parallel gsd-project-researcher agents. Each uses this template with dimension-specific fields:
 
 **Common structure for all 4 researchers:**
-```
+```text
 Agent(prompt="
 <research_type>Project Research — {DIMENSION} for [new features].</research_type>
 
@@ -461,7 +461,7 @@ gsd-sdk query commit "docs: define milestone v[X.Y] requirements" --files .plann
 - If `--reset-phase-numbers` is active, start at **Phase 1**
 - Otherwise, continue from the previous milestone's last phase number (v1.0 ended at phase 5 → v1.1 starts at phase 6)
 
-```
+```text
 Agent(prompt="
 <planning_context>
 <files_to_read>
