@@ -9338,7 +9338,12 @@ function installSdkIfNeeded(opts) {
   // so a self-link into a user-writable PATH dir makes `gsd-sdk` callable
   // from local-mode installs too. Only when the dist is genuinely missing
   // do we bail out with a non-fatal warning.
-  if (opts.isLocal && !fs.existsSync(sdkCliPath)) {
+  //
+  // #3033: --sdk (opts.forceSdk) overrides the local-install early-return —
+  // the user explicitly requested SDK deployment, so treat the missing-dist
+  // case like a global install (fail fast with an actionable diagnostic)
+  // instead of silently skipping.
+  if (opts.isLocal && !opts.forceSdk && !fs.existsSync(sdkCliPath)) {
     console.warn(`\n  ${yellow}⚠${reset}  Skipping SDK check for local install — sdk/dist/cli.js not found at ${sdkCliPath}.`);
     return;
   }
@@ -9813,7 +9818,8 @@ function installAllRuntimes(runtimes, isGlobal, isInteractive) {
     // prebuilt in the tarball (fix/2441-sdk-decouple); gsd-sdk reaches users via
     // the parent package's bin/gsd-sdk.js shim, so no sub-install is needed.
     // Skip with --no-sdk. Skip with isLocal (#2678 — local installs don't own global npm).
-    installSdkIfNeeded({ isLocal: !isGlobal });
+    // #3033: pass forceSdk so --sdk overrides the local-install skip.
+    installSdkIfNeeded({ isLocal: !isGlobal, forceSdk: hasSdk });
 
     const printSummaries = () => {
       for (const result of results) {
