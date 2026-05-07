@@ -3,38 +3,18 @@ name: Dismiss Unauthorized PR Approvals
 on:
   pull_request_review:
     types: [submitted]
-  workflow_dispatch:
-    inputs:
-      blocked_reviewer:
-        description: Reviewer login to retroactively sweep
-        required: false
-        default: ari4ka
-      pr_state:
-        description: Pull request state to scan (open, closed, all)
-        required: false
-        default: all
-      page:
-        description: PR results page to scan (1-indexed)
-        required: false
-        default: '1'
-      batch_size:
-        description: Number of PRs to scan in this run (max 100)
-        required: false
-        default: '25'
-  schedule:
-    - cron: '17 4 * * *'
 
 permissions:
   contents: read
   pull-requests: write
 
 concurrency:
-  group: dismiss-unauthorized-pr-approvals
+  group: dismiss-unauthorized-pr-approvals-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   dismiss-unauthorized-approval:
-    if: github.event_name != 'pull_request_review' || github.event.review.state == 'approved'
+    if: github.event.review.state == 'approved' && github.event.pull_request.state == 'open'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -110,88 +90,19 @@ jobs:
               }
             }
 
-            // Future approvals: act immediately when review submitted
-            if (context.eventName === 'pull_request_review') {
-              const review = context.payload.review;
-              const reviewer = review.user.login;
-              const roleName = await resolveRole(reviewer);
-              const verdict = shouldDismissReviewer(reviewer, roleName);
+            const review = context.payload.review;
+            const reviewer = review.user.login;
+            const roleName = await resolveRole(reviewer);
+            const verdict = shouldDismissReviewer(reviewer, roleName);
 
-              if (!verdict.dismiss) {
-                core.info(`Approval from ${reviewer} kept (role: ${roleName}).`);
-                return;
-              }
-
-              await dismissReview(
-                context.payload.pull_request.number,
-                review.id,
-                reviewer,
-                verdict.message
-              );
+            if (!verdict.dismiss) {
+              core.info(`Approval from ${reviewer} kept (role: ${roleName}).`);
               return;
             }
 
-            // Retroactive sweep: dismiss prior approvals in one PR batch per run
-            const blockedReviewer = norm(core.getInput('blocked_reviewer') || 'ari4ka');
-
-            function parsePositiveInt(rawValue, fallback, max) {
-              const parsed = Number.parseInt(String(rawValue || ''), 10);
-              if (!Number.isFinite(parsed) || parsed < 1) return fallback;
-              return Math.min(parsed, max);
-            }
-
-            const requestedState = norm(core.getInput('pr_state') || 'all');
-            const prState = ['open', 'closed', 'all'].includes(requestedState) ? requestedState : 'all';
-            const page = parsePositiveInt(core.getInput('page'), 1, 1000000);
-            const batchSize = parsePositiveInt(core.getInput('batch_size'), 25, 100);
-
-            const pullsResp = await github.rest.pulls.list({
-              owner,
-              repo,
-              state: prState,
-              sort: 'updated',
-              direction: 'desc',
-              per_page: batchSize,
-              page,
-            });
-            const pulls = pullsResp.data;
-
-            core.info(
-              `Retroactive sweep batch starting: reviewer=${blockedReviewer}, state=${prState}, page=${page}, batch_size=${batchSize}, pulled=${pulls.length}.`
-            );
-
-            let scannedPrs = 0;
-            let dismissedCount = 0;
-
-            for (const pr of pulls) {
-              scannedPrs += 1;
-              core.info(`Scanning PR #${pr.number} (${scannedPrs}/${pulls.length})`);
-
-              const reviews = await github.paginate(github.rest.pulls.listReviews, {
-                owner,
-                repo,
-                pull_number: pr.number,
-                per_page: 100,
-              });
-
-              for (const review of reviews) {
-                const reviewer = norm(review.user?.login);
-                const state = norm(review.state);
-
-                if (reviewer !== blockedReviewer) continue;
-                if (state !== 'approved') continue;
-
-                const ok = await dismissReview(
-                  pr.number,
-                  review.id,
-                  reviewer,
-                  `Auto-dismissed approval during retroactive sweep: reviewer is blocked (${blockedReviewer}).`
-                );
-
-                if (ok) dismissedCount += 1;
-              }
-            }
-
-            core.info(
-              `Retroactive sweep batch complete. State=${prState}, page=${page}, scanned ${scannedPrs} PR(s), dismissed ${dismissedCount} approval(s) from ${blockedReviewer}.`
+            await dismissReview(
+              context.payload.pull_request.number,
+              review.id,
+              reviewer,
+              verdict.message
             );
