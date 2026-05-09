@@ -40,6 +40,12 @@ Module owning command resolution, policy projection (`mutation`, `output_mode`),
 ### Query Pre-Project Config Policy Module
 Module policy that defines query-time behavior when `.planning/config.json` is absent: use built-in defaults for parity-sensitive query Interfaces, and emit parity-aligned empty model ids for pre-project model resolution surfaces.
 
+### Planning Workspace Module
+Module owning `.planning` path resolution, active workstream pointer policy (`session-scoped > shared`), pointer self-heal behavior, and planning lock semantics for workstream-aware execution.
+
+### Worktree Root Resolution Adapter Module
+Adapter Module owning linked-worktree root mapping and metadata-prune policy (`git worktree prune` non-destructive default) for planning/workstream callers.
+
 ### SDK Package Seam Module
 Module owning SDK-to-`get-shit-done-cc` compatibility policy: legacy asset discovery, install-layout probing, transition-only error messaging, and thin Adapter access for CJS-era assets that native SDK Modules have not replaced yet.
 
@@ -96,6 +102,12 @@ Five-axis story decomposition discipline (**S**pike, **P**aths, **I**nterfaces, 
 
 ### Shell guards — absolute-path containment must use `root/` prefix, not glob
 - `[[ "$PATH" != "$ROOT"* ]]` matches sibling prefixes (`/repo-extra` passes when `ROOT=/repo`). Use `[[ "$P" != "$ROOT" && "$P" != "$ROOT/"* ]]`. Also: check `[ -z "$ROOT" ]` and exit 1 before the containment test. Warn → fail-closed for security-relevant path checks.
+
+### Workstream migration names — enforce one canonical slug contract
+- **Invariant**: every directory under `.planning/workstreams/*` must be addressable by `workstream status/set/complete`, so creation and migration must share the same name contract.
+- **Failure class**: accepting raw `--migrate-name` values created directories that later commands reject (e.g. `Bad Name` directory exists but CLI rejects it as invalid).
+- **Rule**: normalize `--migrate-name` through the same slug transform as `workstream create` (`[a-z0-9-]`), and fail fast if normalization yields empty.
+- **TDD sentinel**: keep regression asserting `workstream create ... --migrate-name 'Bad Name'` migrates to `bad-name` and does not leave `Bad Name` on disk.
 
 ### Docs — keep internal reference counts consistent
 - When a heading says `(N shipped)` and a footnote says `N-1 top-level references`, update the footnote. CodeRabbit catches this every time.
@@ -206,3 +218,46 @@ After stripping prose @-refs, some command `<process>` blocks retained bolded "*
 - Do not keep duplicate/inert exported types; expose one canonical union Interface.
 - Do not emit decision events before guard checks that may reject the path.
 - Do not leave architectural docs with ambiguous seam ownership between CLI and SDK paths.
+
+---
+
+## AI Ops Memory (2026-05-09, machine-oriented)
+
+`RULESET.CONTRIB.GATE.ORDER=issue-first -> approval-label -> code -> PR-link -> changeset/no-changelog`
+`RULESET.CONTRIB.CLASSIFY.fix=requires confirmed/confirmed-bug before implementation`
+`RULESET.CONTRIB.CLASSIFY.enhancement=requires approved-enhancement before implementation`
+`RULESET.CONTRIB.CLASSIFY.feature=requires approved-feature before implementation`
+
+`CI.GATE.issue-link-required=hard-fail if PR body lacks closes/fixes/resolves #<issue>`
+`CI.GATE.changeset-lint=hard-fail for user-facing code diffs unless .changeset/* or PR has no-changelog label`
+`CI.GATE.repair-sequence(PR)=create issue -> apply approval label -> edit PR body w/ closing keyword -> apply no-changelog if appropriate -> re-run checks`
+
+`PR.3267.POSTMORTEM.root-cause=[missing issue link, missing changeset/no-changelog]`
+`PR.3267.POSTMORTEM.recovery=[issue#3270 created, label approved-enhancement applied, PR reopened, body includes "Closes #3270", label no-changelog applied]`
+
+`WORKTREE.SEAM.current=Worktree Safety Policy Module`
+`WORKTREE.SEAM.files=[get-shit-done/bin/lib/worktree-safety.cjs, get-shit-done/bin/lib/core.cjs]`
+`WORKTREE.SEAM.interface=[resolveWorktreeContext, parseWorktreePorcelain, planWorktreePrune, executeWorktreePrunePlan]`
+`WORKTREE.SEAM.default-prune-policy=metadata_prune_only (non-destructive)`
+`WORKTREE.SEAM.decision-1=retain non-destructive default; destructive path only as explicit future opt-in scaffold`
+
+`WORKSTREAM.INVARIANT.migrate-name=must normalize through canonical slug policy`
+`WORKSTREAM.INVARIANT.slug-contract=all .planning/workstreams/<name> must be addressable by set/get/status/complete`
+`WORKSTREAM.REGRESSION.test-anchor=tests/workstream.test.cjs::normalizes --migrate-name to a valid workstream slug`
+
+`ARCH.SKILL.improve-codebase.next-candidates=[Workstream Name Policy Module, Workstream Progress Projection Module, Active Workstream Pointer Store Module]`
+
+`WORKTREE.SEAM.test-policy=cover all decision branches in policy module before changing prune behavior`
+`WORKTREE.SEAM.test-anchors=[resolveWorktreeContext:has_local_planning|linked_worktree|not_git_repo|main_worktree, planWorktreePrune:git_list_failed|worktrees_present|no_worktrees|parser_throw_fallback, executeWorktreePrunePlan:missing_plan|skip_passthrough|unsupported_action|metadata_prune_only]`
+`WORKTREE.SEAM.invariant=parser failure must degrade to metadata_prune_only and never escalate to destructive removal`
+`WORKTREE.SEAM.execution-rule=prefer node --test tests/worktree-safety-policy.test.cjs for fast seam validation; avoid full npm test loop for seam-only changes`
+`WORKTREE.SEAM.inventory-interface=[listLinkedWorktreePaths, inspectWorktreeHealth]`
+`WORKTREE.SEAM.caller-rule=verify.cjs must consume inspectWorktreeHealth for W017 classification; no ad-hoc porcelain parsing in callers`
+`WORKTREE.SEAM.test-anchor-w017=tests/orphan-worktree-detection.test.cjs + tests/worktree-safety-policy.test.cjs`
+`WORKTREE.SEAM.inventory-snapshot=snapshotWorktreeInventory(repoRoot,{staleAfterMs,nowMs}) is canonical linked-worktree health snapshot for callers`
+`PLANNING.PATH.PARITY.sdk-project-scope=.planning/<project> (never .planning/projects/<project>); mirror planning-workspace.cjs planningDir()`
+`PLANNING.PATH.SEAM.sdk=helpers.planningPaths delegates to workspacePlanningPaths + resolveWorkspaceContext; precedence explicit-ws > env-ws > env-project > root`
+`PLANNING.PATH.SEAM.init-handlers=[initExecutePhase, initPlanPhase, initPhaseOp, initMilestoneOp] consume helpers.planningPaths().planning (no direct relPlanningPath join)`
+`WORKSTREAM.NAME.POLICY.cjs-module=get-shit-done/bin/lib/workstream-name-policy.cjs owns toWorkstreamSlug + active-name/path-segment validation`
+`WORKSTREAM.POINTER.SEAM.sdk-module=sdk/src/query/active-workstream-store.ts owns read/write self-heal for .planning/active-workstream`
+`CONFIG.SEAM.loadConfig-context=loadConfig(cwd,{workstream}) replaces env-mutation fallback; no temporary process.env GSD_WORKSTREAM rewrites`
