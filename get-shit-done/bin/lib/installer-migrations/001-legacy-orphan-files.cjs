@@ -25,6 +25,7 @@ module.exports = {
           type: 'remove-managed',
           relPath,
           reason: 'legacy orphan hook file retired by installer migration',
+          ownershipEvidence: 'legacy hook path is manifest-managed in gsd-file-manifest.json',
         });
       }
     }

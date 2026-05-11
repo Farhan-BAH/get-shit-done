@@ -74,6 +74,7 @@ module.exports = {
         value: pruned.value,
         deleteIfEmpty: true,
         reason: 'legacy Codex hooks.json GSD registration retired by installer migration',
+        ownershipEvidence: 'pruned command matches generated GSD hook command under the install hooks directory',
       },
     ];
   },
