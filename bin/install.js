@@ -9898,6 +9898,12 @@ function installSdkIfNeeded(opts) {
   if (!fs.existsSync(sdkCliPath)) {
     const ir = buildSdkFailFastReport(sdkDir, sdkCliPath);
     renderSdkFailFastReport(ir);
+    if (opts.throwOnFailure) {
+      const error = new Error(`GSD SDK prebuilt artifact missing: ${sdkCliPath}`);
+      error.code = 'GSD_SDK_MISSING_DIST';
+      error.exitCode = 1;
+      throw error;
+    }
     process.exit(1);
   }
 
@@ -10586,14 +10592,6 @@ function installAllRuntimes(runtimes, isGlobal, isInteractive) {
     migrationsDir: path.join(_gsdLibDir, 'installer-migrations'),
   });
 
-  for (const runtime of runtimes) {
-    const result = install(isGlobal, runtime, { installerMigrations });
-    results.push(result);
-  }
-
-  const statuslineRuntimes = ['claude', 'gemini'];
-  const primaryStatuslineResult = results.find(r => statuslineRuntimes.includes(r.runtime));
-
   const rollbackFinalizedInstallerMigrations = (error) => {
     const rollbackFailures = [];
     for (const result of [...results].reverse()) {
@@ -10612,6 +10610,19 @@ function installAllRuntimes(runtimes, isGlobal, isInteractive) {
     }
   };
 
+  try {
+    for (const runtime of runtimes) {
+      const result = install(isGlobal, runtime, { installerMigrations });
+      results.push(result);
+    }
+  } catch (error) {
+    rollbackFinalizedInstallerMigrations(error);
+    throw error;
+  }
+
+  const statuslineRuntimes = ['claude', 'gemini'];
+  const primaryStatuslineResult = results.find(r => statuslineRuntimes.includes(r.runtime));
+
   const finalize = (shouldInstallStatusline, shouldInstallBanner) => {
     try {
       // Verify sdk/dist/cli.js is present and executable. The dist is shipped
@@ -10619,7 +10630,7 @@ function installAllRuntimes(runtimes, isGlobal, isInteractive) {
       // the parent package's bin/gsd-sdk.js shim, so no sub-install is needed.
       // Skip with --no-sdk. Skip with isLocal (#2678 — local installs don't own global npm).
       // #3033: pass forceSdk so --sdk overrides the local-install skip.
-      installSdkIfNeeded({ isLocal: !isGlobal, forceSdk: hasSdk });
+      installSdkIfNeeded({ isLocal: !isGlobal, forceSdk: hasSdk, throwOnFailure: true });
 
       const printSummaries = () => {
         for (const result of results) {

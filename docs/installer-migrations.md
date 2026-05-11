@@ -259,8 +259,8 @@ entry point for every supported runtime: Claude Code, Antigravity, Augment,
 Cline, CodeBuddy, Codex, Copilot, Cursor, Gemini, Hermes Agent, Kilo, OpenCode,
 Qwen Code, Trae, and Windsurf. The installer invokes the same migration runner
 with `baselineScan: true`, reports the projected action rows, applies safe
-non-interactive actions before materialization, writes install state after a
-successful apply, and fails before writing new package files when the runner
+non-interactive actions before materialization, persists install state only after
+package materialization and finalization succeed, and fails before writing new package files when the runner
 returns blocked user-choice actions.
 
 Phase 1-3 built the planning, apply, rollback, install-state, baseline, and

@@ -220,9 +220,16 @@ describe('#2771: USER_OWNED_ARTIFACTS is a single source of truth', () => {
 
 describe('manifest path safety', () => {
   let tmpDir;
+  let outside;
 
-  beforeEach(() => { tmpDir = createTempDir('gsd-manifest-path-safety-'); });
-  afterEach(() => { cleanup(tmpDir); });
+  beforeEach(() => {
+    tmpDir = createTempDir('gsd-manifest-path-safety-');
+    outside = path.join(tmpDir, '..', `outside-managed-file-${path.basename(tmpDir)}.txt`);
+  });
+  afterEach(() => {
+    if (outside) fs.rmSync(outside, { recursive: true, force: true });
+    cleanup(tmpDir);
+  });
 
   test('saveLocalPatches ignores manifest entries that escape the install root', () => {
     const origMode = process.env.GSD_TEST_MODE;
@@ -236,7 +243,6 @@ describe('manifest path safety', () => {
       else process.env.GSD_TEST_MODE = origMode;
     }
 
-    const outside = path.join(tmpDir, '..', 'outside-managed-file.txt');
     fs.writeFileSync(outside, 'outside user data\n', 'utf8');
     fs.writeFileSync(
       path.join(tmpDir, MANIFEST_NAME),
@@ -254,6 +260,6 @@ describe('manifest path safety', () => {
 
     assert.deepEqual(modified, []);
     assert.equal(fs.readFileSync(outside, 'utf8'), 'outside user data\n');
-    assert.equal(fs.existsSync(path.join(tmpDir, PATCHES_DIR_NAME, '..', 'outside-managed-file.txt')), false);
+    assert.equal(fs.existsSync(path.join(tmpDir, PATCHES_DIR_NAME, '..', path.basename(outside))), false);
   });
 });
