@@ -2,10 +2,16 @@
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 const BASELINE_MIGRATION_ID = '2026-05-11-first-time-baseline-scan';
 
+// Runtime install surfaces must stay aligned with:
+// - docs/installer-migrations.md#runtime-configuration-contract-registry
+// - docs/ARCHITECTURE.md#runtime-install-contract-matrix
+//
+// The registry rows are based on each runtime's upstream loader docs where
+// available. Source-limited rows are intentionally conservative: scan generated
+// files GSD materializes, but do not infer ownership of undocumented host config.
 const RUNTIME_SURFACES = {
   claude: ['get-shit-done', 'commands/gsd', 'skills', 'agents', 'hooks', 'settings.json'],
   codex: ['get-shit-done', 'skills', 'agents', 'hooks', 'config.toml', 'hooks.json'],
@@ -36,10 +42,7 @@ const USER_OWNED_PATHS = new Set([
   'commands/gsd/dev-preferences.md',
   'skills/gsd-dev-preferences/SKILL.md',
 ]);
-
-function sha256File(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
+let knownGeneratedAgentNames = null;
 
 function normalizeRelPath(relPath) {
   return relPath.replace(/\\/g, '/').replace(/^\/+/, '');
@@ -53,8 +56,7 @@ function baselineInstallSurfaces(runtime) {
 function walkFiles(root, relDir, files) {
   const dir = path.join(root, relDir);
   if (!fs.existsSync(dir)) return;
-  const entries = fs.readdirSync(dir, { withFileTypes: true })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const relPath = path.posix.join(relDir, entry.name);
     if (relDir === '' && INTERNAL_TOP_LEVEL_NAMES.has(entry.name)) continue;
@@ -80,7 +82,7 @@ function scanBaselineFiles(configDir, runtime) {
       relPaths.add(normalized);
     }
   }
-  return [...relPaths].sort();
+  return [...relPaths];
 }
 
 function isUserOwnedBaselinePath(relPath) {
@@ -89,6 +91,36 @@ function isUserOwnedBaselinePath(relPath) {
   if (parts[0] === 'skills' && parts[1] && !parts[1].startsWith('gsd-')) return true;
   if (parts[0] === 'agents' && parts[1] && !parts[1].startsWith('gsd-')) return true;
   return false;
+}
+
+function listKnownGeneratedAgentNames() {
+  if (knownGeneratedAgentNames) return knownGeneratedAgentNames;
+
+  knownGeneratedAgentNames = new Set();
+  const agentsDir = path.resolve(__dirname, '..', '..', '..', '..', 'agents');
+  try {
+    for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.startsWith('gsd-') && entry.name.endsWith('.md')) {
+        knownGeneratedAgentNames.add(entry.name.replace(/\.md$/, ''));
+      }
+    }
+  } catch {
+    // If the source agent directory is unavailable, fail closed and treat
+    // GSD-looking agent files as user-choice artifacts.
+  }
+
+  return knownGeneratedAgentNames;
+}
+
+function isKnownGeneratedAgentPath(relPath, runtime) {
+  const parts = relPath.split('/');
+  if (parts.length !== 2 || parts[0] !== 'agents') return false;
+  const fileName = parts[1];
+  const extension = path.posix.extname(fileName);
+  if (extension !== '.md' && !(runtime === 'codex' && extension === '.toml')) return false;
+
+  const agentName = fileName.slice(0, -extension.length);
+  return listKnownGeneratedAgentNames().has(agentName);
 }
 
 function isStaleGsdLookingPath(relPath) {
@@ -129,7 +161,19 @@ module.exports = {
         continue;
       }
 
-      const currentHash = fs.existsSync(path.join(configDir, relPath)) ? sha256File(path.join(configDir, relPath)) : null;
+      const currentHash = artifact.currentHash;
+      if (isKnownGeneratedAgentPath(relPath, runtime)) {
+        actions.push({
+          type: 'record-baseline',
+          relPath,
+          reason: 'known installer-generated agent included in first-time migration baseline',
+          classification: artifact.classification,
+          originalHash: artifact.originalHash,
+          currentHash,
+        });
+        continue;
+      }
+
       if (isUserOwnedBaselinePath(relPath)) {
         actions.push({
           type: 'baseline-preserve-user',
