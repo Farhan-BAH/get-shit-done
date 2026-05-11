@@ -7634,6 +7634,13 @@ function install(isGlobal, runtime = 'claude') {
 
   // Track installation failures
   const failures = [];
+  let installerMigrationResult = null;
+  const rollbackInstallerMigrations = () => {
+    if (!installerMigrationResult || typeof installerMigrationResult.rollback !== 'function') return;
+    const rollback = installerMigrationResult.rollback;
+    installerMigrationResult = null;
+    rollback();
+  };
 
   // Save any locally modified GSD files before they get wiped.
   // The pristine context lets saveLocalPatches populate gsd-pristine/ via
@@ -7647,7 +7654,7 @@ function install(isGlobal, runtime = 'claude') {
   });
 
   // Run manifest-backed cleanup migrations before package materialization.
-  runInstallerMigrations({ configDir: targetDir });
+  installerMigrationResult = runInstallerMigrations({ configDir: targetDir });
 
   // #3245 — Codex idempotent rollback. Capture pre-install state of ALL
   // directories and files GSD will mutate so that any post-install validation
@@ -8439,6 +8446,7 @@ function install(isGlobal, runtime = 'claude') {
     // #3245 CR finding 2 — any throw in the pre-config install operations (skills copy,
     // agents copy, VERSION write, manifest write, etc.) triggers the Codex pre-config
     // rollback so the caller is never left in a partially-installed state.
+    rollbackInstallerMigrations();
     if (_codexPreConfigRollback) {
       _codexPreConfigRollback();
     }
@@ -8471,6 +8479,7 @@ function install(isGlobal, runtime = 'claude') {
     // existence checks. Safe to call before any snapshots are captured (variables
     // default to empty Set / null). Does NOT touch non-gsd-* user content.
     const restoreCodexSnapshot = () => {
+      rollbackInstallerMigrations();
       // 1. config.toml
       if (codexConfigPreInstallSnapshot !== null) {
         try { fs.writeFileSync(codexConfigPathPreInstall, codexConfigPreInstallSnapshot); }
