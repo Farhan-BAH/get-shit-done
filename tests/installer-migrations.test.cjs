@@ -48,6 +48,26 @@ function writeManifest(root, files) {
   );
 }
 
+function migrationRecord(overrides = {}) {
+  return {
+    id: '2026-05-11-remove-old-hook',
+    title: 'Remove retired hook',
+    description: 'Remove retired hook',
+    introducedIn: '1.50.0',
+    scopes: ['global', 'local'],
+    destructive: true,
+    plan: () => [
+      {
+        type: 'remove-managed',
+        relPath: 'hooks/old-hook.js',
+        reason: 'retired hook',
+        ownershipEvidence: 'test fixture manifest-managed hook',
+      },
+    ],
+    ...overrides,
+  };
+}
+
 function legacyCodexHook(configDir) {
   return {
     hooks: [
@@ -158,6 +178,51 @@ test('preserves unknown files discovered in known install surfaces by default', 
   }
 });
 
+test('preserves user-owned skill files during baseline without hashing their content', (t) => {
+  const configDir = createTempInstall();
+  const originalOpenSync = fs.openSync;
+  t.after(() => {
+    fs.openSync = originalOpenSync;
+    cleanup(configDir);
+  });
+
+  writeFile(configDir, 'skills/custom-user-skill/SKILL.md', 'user skill\n');
+  writeManifest(configDir, {});
+  const userSkillPath = path.join(configDir, 'skills/custom-user-skill/SKILL.md');
+  fs.openSync = (filePath, ...args) => {
+    if (path.resolve(String(filePath)) === path.resolve(userSkillPath)) {
+      throw new Error('user-owned skill content should not be hashed during baseline');
+    }
+    return originalOpenSync.call(fs, filePath, ...args);
+  };
+
+  const result = runInstallerMigrations({
+    configDir,
+    runtime: 'claude',
+    scope: 'global',
+    migrations: [firstTimeBaselineMigration],
+    baselineScan: true,
+    now: () => '2026-05-11T00:00:01.000Z',
+  });
+
+  assert.deepEqual(
+    result.plan.actions.map((action) => ({
+      type: action.type,
+      relPath: action.relPath,
+      classification: action.classification,
+      currentHash: action.currentHash,
+    })),
+    [
+      {
+        type: 'baseline-preserve-user',
+        relPath: 'skills/custom-user-skill/SKILL.md',
+        classification: 'user-owned',
+        currentHash: null,
+      },
+    ]
+  );
+});
+
 test('blocks stale GSD-looking baseline artifacts for explicit user choice', () => {
   const configDir = createTempInstall();
   try {
@@ -259,18 +324,9 @@ test('plans a pending migration against an unchanged managed file', () => {
     const plan = planInstallerMigrations({
       configDir,
       migrations: [
-        {
-          id: '2026-05-11-remove-old-hook',
-          description: 'Remove retired hook',
-          plan: () => [
-            {
-              type: 'remove-managed',
-              relPath: 'hooks/old-hook.js',
-              reason: 'retired hook',
-            },
-          ],
-        },
+        migrationRecord(),
       ],
+      scope: 'global',
       now: () => '2026-05-11T00:00:00.000Z',
     });
 
@@ -314,18 +370,9 @@ test('plans backup before removal for a modified managed file', () => {
     const plan = planInstallerMigrations({
       configDir,
       migrations: [
-        {
-          id: '2026-05-11-remove-old-hook',
-          description: 'Remove retired hook',
-          plan: () => [
-            {
-              type: 'remove-managed',
-              relPath: 'hooks/old-hook.js',
-              reason: 'retired hook',
-            },
-          ],
-        },
+        migrationRecord(),
       ],
+      scope: 'global',
       now: () => '2026-05-11T00:00:00.000Z',
     });
 
@@ -350,18 +397,18 @@ test('blocks removal of unknown files by preserving them by default', () => {
     const plan = planInstallerMigrations({
       configDir,
       migrations: [
-        {
-          id: '2026-05-11-remove-old-hook',
-          description: 'Remove retired hook',
+        migrationRecord({
           plan: () => [
             {
               type: 'remove-managed',
               relPath: 'hooks/custom-user-hook.js',
               reason: 'retired hook',
+              ownershipEvidence: 'test fixture asks to retire a matching hook path',
             },
           ],
-        },
+        }),
       ],
+      scope: 'global',
       now: () => '2026-05-11T00:00:00.000Z',
     });
 
@@ -399,21 +446,35 @@ test('computes each migration checksum once per planned migration', (t) => {
   });
   let checksumReads = 0;
   const migration = {
-    id: '2026-05-11-remove-two-hooks',
-    description: 'Remove retired hooks',
+    ...migrationRecord({
+      id: '2026-05-11-remove-two-hooks',
+      title: 'Remove two retired hooks',
+      description: 'Remove retired hooks',
+      plan: () => [
+        {
+          type: 'remove-managed',
+          relPath: 'hooks/first.js',
+          reason: 'retired hook',
+          ownershipEvidence: 'test fixture manifest-managed hook',
+        },
+        {
+          type: 'remove-managed',
+          relPath: 'hooks/second.js',
+          reason: 'retired hook',
+          ownershipEvidence: 'test fixture manifest-managed hook',
+        },
+      ],
+    }),
     get checksum() {
       checksumReads += 1;
       return 'sha256:precomputed';
     },
-    plan: () => [
-      { type: 'remove-managed', relPath: 'hooks/first.js', reason: 'retired hook' },
-      { type: 'remove-managed', relPath: 'hooks/second.js', reason: 'retired hook' },
-    ],
   };
 
   const plan = planInstallerMigrations({
     configDir,
     migrations: [migration],
+    scope: 'global',
   });
 
   assert.equal(plan.actions.length, 2);
@@ -457,18 +518,9 @@ test('applies an unblocked plan with a journal and install-state update', () => 
     const plan = planInstallerMigrations({
       configDir,
       migrations: [
-        {
-          id: '2026-05-11-remove-old-hook',
-          description: 'Remove retired hook',
-          plan: () => [
-            {
-              type: 'remove-managed',
-              relPath: 'hooks/old-hook.js',
-              reason: 'retired hook',
-            },
-          ],
-        },
+        migrationRecord(),
       ],
+      scope: 'global',
       now: () => '2026-05-11T00:00:00.000Z',
     });
 
@@ -561,16 +613,9 @@ test('stores modified-file backups under the unique migration run journal', (t) 
   const plan = planInstallerMigrations({
     configDir,
     migrations: [
-      {
-        id: '2026-05-11-remove-old-hook',
-        description: 'Remove retired hook',
-        plan: () => [{
-          type: 'remove-managed',
-          relPath: 'hooks/old-hook.js',
-          reason: 'retired hook',
-        }],
-      },
+      migrationRecord(),
     ],
+    scope: 'global',
     now: () => '2026-05-11T00:00:00.000Z',
   });
 
@@ -598,16 +643,9 @@ test('successful migration rollback removes run-scoped backup directories', (t) 
   const plan = planInstallerMigrations({
     configDir,
     migrations: [
-      {
-        id: '2026-05-11-remove-old-hook',
-        description: 'Remove retired hook',
-        plan: () => [{
-          type: 'remove-managed',
-          relPath: 'hooks/old-hook.js',
-          reason: 'retired hook',
-        }],
-      },
+      migrationRecord(),
     ],
+    scope: 'global',
   });
 
   const result = applyInstallerMigrationPlan({
@@ -915,14 +953,13 @@ test('skips migration records already present in install state', () => {
     const plan = planInstallerMigrations({
       configDir,
       migrations: [
-        {
-          id: '2026-05-11-remove-old-hook',
-          description: 'Remove retired hook',
+        migrationRecord({
           plan: () => {
             throw new Error('already-applied migration planner must not run');
           },
-        },
+        }),
       ],
+      scope: 'global',
       now: () => '2026-05-11T00:00:03.000Z',
     });
 
@@ -954,13 +991,12 @@ test('refuses to plan an already-applied migration whose checksum changed', () =
       () => planInstallerMigrations({
         configDir,
         migrations: [
-          {
-            id: '2026-05-11-remove-old-hook',
+          migrationRecord({
             checksum: 'sha256:new-definition',
-            description: 'Remove retired hook',
             plan: () => [],
-          },
+          }),
         ],
+        scope: 'global',
       }),
       /applied migration checksum changed/
     );
@@ -990,16 +1026,17 @@ test('ignores checksum drift for applied migrations outside the active runtime s
       runtime: 'claude',
       scope: 'global',
       migrations: [
-        {
+        migrationRecord({
           id: '2026-05-11-codex-only',
+          title: 'Codex-only migration',
+          description: 'Codex-only migration',
           checksum: 'sha256:new-definition',
           runtimes: ['codex'],
           scopes: ['global'],
-          description: 'Codex-only migration',
           plan: () => {
             throw new Error('out-of-scope migration planner must not run');
           },
-        },
+        }),
       ],
     });
 
@@ -1018,12 +1055,12 @@ test('discovers migration records from a directory in filename order', () => {
     fs.mkdirSync(migrationsDir, { recursive: true });
     fs.writeFileSync(
       path.join(migrationsDir, '002-second.cjs'),
-      "module.exports = { id: 'second', description: 'second', plan: () => [] };\n",
+      "module.exports = { id: 'second', title: 'Second', description: 'second', introducedIn: '1.50.0', scopes: ['global', 'local'], destructive: false, plan: () => [] };\n",
       'utf8'
     );
     fs.writeFileSync(
       path.join(migrationsDir, '001-first.cjs'),
-      "module.exports = { id: 'first', description: 'first', plan: () => [] };\n",
+      "module.exports = { id: 'first', title: 'First', description: 'first', introducedIn: '1.50.0', scopes: ['global', 'local'], destructive: false, plan: () => [] };\n",
       'utf8'
     );
 
@@ -1044,18 +1081,21 @@ test('rejects migration actions that escape the install root', () => {
       () => planInstallerMigrations({
         configDir,
         migrations: [
-          {
+          migrationRecord({
             id: '2026-05-11-bad-path',
+            title: 'Bad path',
             description: 'Bad path',
             plan: () => [
               {
                 type: 'remove-managed',
                 relPath: 'hooks/../../outside.js',
                 reason: 'bad path',
+                ownershipEvidence: 'test fixture manifest-managed hook',
               },
             ],
-          },
+          }),
         ],
+        scope: 'global',
       }),
       /relPath must stay inside configDir/
     );
